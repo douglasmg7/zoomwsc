@@ -12,6 +12,11 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
+type siteProduct struct {
+	Name       string `bson:"storeProductTitle"`
+	DealerName string `bson:"dealerName"`
+}
+
 func init() {
 	// Db config.
 	client, err := mongo.NewClient(options.Client().ApplyURI(zunkaSiteMongoDBConnectionString))
@@ -39,29 +44,44 @@ func init() {
 	// M: An unordered map. It is the same as D, except it does not preserve order.
 	// A: A BSON array.
 	// E: A single element inside a D.
-	cur, err := collection.Find(
-		ctx,
-		bson.D{},
-		options.Find().SetProjection(bson.D{{"storeProductTitle", true}}),
-	)
-	// cur, err := collection.Find(ctx, bson.D{})
+	// options.Find().SetProjection(bson.D{{"storeProductTitle", true}, {"_id", false}}),
+	findOptions := options.Find()
+	findOptions.SetProjection(bson.D{{"storeProductTitle", true}, {"dealerName", true}, {"_id", false}})
+	findOptions.SetLimit(10)
+
+	cur, err := collection.Find(ctx, bson.D{}, findOptions)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer cur.Close(ctx)
 	for cur.Next(ctx) {
-		var result bson.M
+		// var result bson.M
+		result := siteProduct{}
+
 		err := cur.Decode(&result)
 		if err != nil {
 			log.Fatal(err)
 		}
+		// product.name = string(result["storeProductTitle"])
+
 		fmt.Println(result)
 		// do something with result....
 	}
+
+	// for cur.Next(ctx) {
+	// var result bson.M
+	// err := cur.Decode(&result)
+	// if err != nil {
+	// log.Fatal(err)
+	// }
+	// fmt.Println(result)
+	// // do something with result....
+	// }
+
 	if err := cur.Err(); err != nil {
 		log.Fatal(err)
 	}
-	err = client.Disconnect(context.TODO())
+	err = client.Disconnect(ctx)
 	if err != nil {
 		fmt.Printf("Error. %v\n", err)
 	}
