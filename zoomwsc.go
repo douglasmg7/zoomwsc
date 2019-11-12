@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"log"
 	"time"
@@ -89,7 +90,7 @@ func main() {
 	err = client.Disconnect(ctxClient)
 	checkFatalError(err)
 
-	log.Printf("Time to process %v", time.Since(initTime))
+	log.Printf("Time to process %v\n\n", time.Since(initTime))
 }
 
 // Get all products to commercialize.
@@ -139,10 +140,38 @@ func getProdutcts() (results []product) {
 }
 
 func saveXML(products []product) {
-	xmlFile, _ := xml.MarshalIndent(products, "", " ")
-	fileName := "zoom-products-" + time.Now().Format("2006-nov-02-150405") + ".xml"
-	err := ioutil.WriteFile(path.Join(xmlPath, fileName), xmlFile, 0644)
+	sendXml := true
+	fileNameSent := "zoom-products-sent.xml"
+	fileNameNew := "zoom-products-" + time.Now().Format("2006-nov-02-150405") + ".xml"
+
+	xmlFile, _ := xml.MarshalIndent(products, "", "    ")
+	// Save with current time name.
+	err := ioutil.WriteFile(path.Join(xmlPath, fileNameNew), xmlFile, 0644)
 	checkFatalError(err)
+
+	// Check if new file is different from last sent.
+	xmlFileSent, err := ioutil.ReadFile(path.Join(xmlPath, fileNameSent))
+	if err != nil {
+		log.Println("Last XML file sent to zoom webservice not exist.")
+	} else {
+		if bytes.Equal(xmlFile, xmlFileSent) {
+			sendXml = false
+			log.Println("Generated XML file is equal to the last XML file sent.")
+		}
+	}
+	// Save xml file.
+	log.Printf("Saving XML file %v ...", path.Join(xmlPath, fileNameNew))
+	// Send xml file to zoom webservice.
+	if sendXml {
+		// Send xml file to zoom webservice.
+		log.Println("Sending xml file to zoom webservice...")
+		// todo.
+
+		// Save xml as last modified.
+		log.Println("Saving last XML file sent to zoom webservice...")
+		err = ioutil.WriteFile(path.Join(xmlPath, fileNameSent), xmlFile, 0644)
+		checkFatalError(err)
+	}
 }
 
 func checkFatalError(err error) {
