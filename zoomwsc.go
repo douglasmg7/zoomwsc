@@ -3,19 +3,20 @@ package main
 import (
 	"bytes"
 	"context"
-	"log"
-	"time"
-
 	"encoding/xml"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
+	"regexp"
 	"strings"
+	"time"
 )
 
 var client *mongo.Client
@@ -26,9 +27,31 @@ var logPath, xmlPath string
 var dev bool
 var initTime time.Time
 
+// Just to create correct xml structure.
+type _products struct {
+	XMLName xml.Name `xml:"PRODUTOS"`
+	A       []product
+}
+
 type product struct {
-	Name       string `bson:"storeProductTitle" xml:"title"`
-	DealerName string `bson:"dealerName" xml:"dealer"`
+	XMLName          xml.Name           `xml:"PRODUTO"`
+	ObjectID         primitive.ObjectID `bson:"_id,omitempty" xml:"-"`
+	ID               string             `xml:"CODIGO"`
+	Name             string             `bson:"storeProductTitle" xml:"NOME"`
+	Department       string             `bson:"" xml:"DEPARTAMENTO"`
+	Category         string             `bson:"storeProductCategory" xml:"SUBDEPARTAMENTO"`
+	Desc             string             `bson:"storeProductDescription" xml:"DESCRICAO"`
+	TechInfo         string             `bson:"storeProductTechnicalInformation" xml:"-"`
+	PriceFrom        float64            `bson:"storeProductPrice" xml:"PRECO_DE"`
+	Price            float64            `bson:"" xml:"PRECO"`
+	InstallmentQtd   int                `bson:"" xml:"NPARCELA"`
+	InstallmentValue float64            `bson:"" xml:"VPARCELA"`
+	Url              string             `bson:"" xml:"URL"`
+	UrlImage         string             `bson:"" xml:"URL_IMAGEM"`
+	MPC              string             `bson:"" xml:"MPC"`
+	EAN              string             `bson:"" xml:"EAN"`
+	SKU              string             `bson:"" xml:"SKU"`
+	Images           []string           `bson:"images" xml:"-"`
 }
 
 func init() {
@@ -117,20 +140,51 @@ func getProdutcts() (results []product) {
 		}},
 	}
 	findOptions := options.Find()
-	findOptions.SetProjection(bson.D{{"storeProductTitle", true}, {"dealerName", true}, {"_id", false}})
-	// findOptions.SetLimit(10)
+	findOptions.SetProjection(bson.D{
+		{"storeProductTitle", true},
+		{"storeProductCategory", true},
+		{"storeProductDescription", true},
+		{"storeProductTechnicalInformation", true},
+		{"storeProductPrice", true},
+		{"images", true},
+		{"dealerName", true},
+	})
+	// todo - comment.
+	// findOptions.SetLimit(1)
 	cur, err := collection.Find(ctxFind, filter, findOptions)
 	checkFatalError(err)
 
 	defer cur.Close(ctxFind)
 	for cur.Next(ctxFind) {
 		// var result bson.M
-		result := product{}
-
+		result := product{
+			Department:     "Informática",
+			InstallmentQtd: 3,
+		}
 		err := cur.Decode(&result)
 		checkFatalError(err)
-
+		// Mounted fields.
+		result.ID = result.ObjectID.Hex()
+		result.EAN = findEan(result.TechInfo)
+		result.Price = result.PriceFrom
+		result.InstallmentValue = float64(int((result.Price/3)*100)) / 100
+		result.Url = "https://www.zunka.com.br/product/" + result.ID
+		if len(result.Images) > 0 {
+			result.UrlImage = "https://www.zunka.com.br/img/" + result.ID + "/" + result.Images[0]
+		} else {
+			result.UrlImage = ""
+		}
 		// log.Println(result)
+		// log.Println("EAN:", findEan(result.TechInfo))
+		// log.Println("TechInfo:", result.TechInfo)
+		// log.Println("ObjectID:", result.ObjectID)
+		// log.Println("ObjectID (string):", result.ObjectID.Hex())
+		// log.Println("ID:", result.ID)
+		// log.Println("Name:", result.Name)
+		// log.Println("Desc:", result.Desc)
+		// log.Println("Category:", result.Category)
+		// log.Println("Price:", result.Price)
+		// log.Println("Images:", result.Images)
 		results = append(results, result)
 	}
 	if err := cur.Err(); err != nil {
@@ -139,12 +193,30 @@ func getProdutcts() (results []product) {
 	return results
 }
 
+func findEan(s string) string {
+	lines := strings.Split(s, "\n")
+	// (?i) case-insensitive flag.
+	r := regexp.MustCompile(`(?i).*ean.*`)
+	for _, line := range lines {
+		if r.MatchString(line) {
+			return strings.TrimSpace(strings.Split(line, ";")[1])
+		}
+	}
+	return ""
+}
+
 func saveXML(products []product) {
 	sendXml := true
 	fileNameSent := "zoom-products-sent.xml"
 	fileNameNew := "zoom-products-" + time.Now().Format("2006-nov-02-150405") + ".xml"
 
-	xmlFile, _ := xml.MarshalIndent(products, "", "    ")
+	prods := _products{
+		A: products,
+	}
+	// Create xml.
+	xmlFile, _ := xml.MarshalIndent(prods, "", "    ")
+	// Add xml header.
+	xmlFile = []byte(xml.Header + string(xmlFile))
 	// Save with current time name.
 	err := ioutil.WriteFile(path.Join(xmlPath, fileNameNew), xmlFile, 0644)
 	checkFatalError(err)
