@@ -48,21 +48,26 @@ type product struct {
 	InstallmentValue float64            `bson:"" xml:"VPARCELA"`
 	Url              string             `bson:"" xml:"URL"`
 	UrlImage         string             `bson:"" xml:"URL_IMAGEM"`
-	MPC              string             `bson:"" xml:"MPC"`
-	EAN              string             `bson:"" xml:"EAN"`
-	SKU              string             `bson:"" xml:"SKU"`
+	MPC              string             `bson:"" xml:"MPC"`    // MPC – (Manufacturer Part Number)
+	EAN              string             `bson:"ean" xml:"EAN"` // EAN – (European Article Number)
+	SKU              string             `bson:"" xml:"SKU"`    // SKU – (Stock Keeping Unit)
 	Images           []string           `bson:"images" xml:"-"`
 }
 
 func init() {
 	initTime = time.Now()
-	// Path.
-	zunkaPath := os.Getenv("ZUNKAPATH")
-	if zunkaPath == "" {
+	// Path for log.
+	zunkaPathLog := os.Getenv("ZUNKAPATH")
+	if zunkaPathLog == "" {
 		panic("ZUNKAPATH not defined.")
 	}
-	logPath := path.Join(zunkaPath, "log")
-	xmlPath = path.Join(zunkaPath, "xml/zoom")
+	logPath := path.Join(zunkaPathLog, "log")
+	// Path for xml.
+	zunkaPathXML := os.Getenv("ZUNKA_SITE_PATH")
+	if zunkaPathXML == "" {
+		panic("ZUNK_SITE_APATH not defined.")
+	}
+	xmlPath = path.Join(zunkaPathXML, "dist/xml/zoom")
 	// Create path.
 	os.MkdirAll(logPath, os.ModePerm)
 	os.MkdirAll(xmlPath, os.ModePerm)
@@ -146,6 +151,7 @@ func getProdutcts() (results []product) {
 		{"storeProductDescription", true},
 		{"storeProductTechnicalInformation", true},
 		{"storeProductPrice", true},
+		{"ean", true},
 		{"images", true},
 		{"dealerName", true},
 	})
@@ -164,11 +170,18 @@ func getProdutcts() (results []product) {
 		err := cur.Decode(&result)
 		checkFatalError(err)
 		// Mounted fields.
+		// ID.
 		result.ID = result.ObjectID.Hex()
-		result.EAN = findEan(result.TechInfo)
+		// EAN.
+		if result.EAN == "" {
+			result.EAN = findEan(result.TechInfo)
+		}
+		// Price from.
 		result.Price = result.PriceFrom
+		// Installments.
 		result.InstallmentValue = float64(int((result.Price/3)*100)) / 100
 		result.Url = "https://www.zunka.com.br/product/" + result.ID
+		// Images.
 		if len(result.Images) > 0 {
 			result.UrlImage = "https://www.zunka.com.br/img/" + result.ID + "/" + result.Images[0]
 		} else {
@@ -206,9 +219,9 @@ func findEan(s string) string {
 }
 
 func saveXML(products []product) {
-	sendXml := true
-	fileNameSent := "zoom-products-sent.xml"
-	fileNameNew := "zoom-products-" + time.Now().Format("2006-nov-02-150405") + ".xml"
+	updateXMLFile := true
+	fileNameSent := "zoom-produtos.xml"
+	fileNameNew := "zoom-produtos-" + time.Now().Format("2006-nov-02-150405") + ".xml"
 
 	prods := _products{
 		A: products,
@@ -224,23 +237,19 @@ func saveXML(products []product) {
 	// Check if new file is different from last sent.
 	xmlFileSent, err := ioutil.ReadFile(path.Join(xmlPath, fileNameSent))
 	if err != nil {
-		log.Println("Last XML file sent to zoom webservice not exist.")
+		log.Println("XML file not exist.")
 	} else {
 		if bytes.Equal(xmlFile, xmlFileSent) {
-			sendXml = false
-			log.Println("Generated XML file is equal to the last XML file sent.")
+			updateXMLFile = false
+			log.Println("XML not changed.")
 		}
 	}
 	// Save xml file.
 	log.Printf("Saving XML file %v ...", path.Join(xmlPath, fileNameNew))
 	// Send xml file to zoom webservice.
-	if sendXml {
-		// Send xml file to zoom webservice.
-		log.Println("Sending xml file to zoom webservice...")
-		// todo.
-
+	if updateXMLFile {
 		// Save xml as last modified.
-		log.Println("Saving last XML file sent to zoom webservice...")
+		log.Printf("Saving XML file %v ...", path.Join(xmlPath, fileNameSent))
 		err = ioutil.WriteFile(path.Join(xmlPath, fileNameSent), xmlFile, 0644)
 		checkFatalError(err)
 	}
