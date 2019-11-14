@@ -4,11 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/mongo/readpref"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -17,6 +13,12 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
 var client *mongo.Client
@@ -42,10 +44,11 @@ type product struct {
 	Category         string             `bson:"storeProductCategory" xml:"SUBDEPARTAMENTO"`
 	Detail           string             `bson:"storeProductDetail" xml:"DESCRICAO"`
 	TechInfo         string             `bson:"storeProductTechnicalInformation" xml:"-"` // To get get ean.
-	PriceFrom        float64            `bson:"storeProductPrice" xml:"PRECO_DE"`
-	Price            float64            `bson:"" xml:"PRECO"`
+	PriceFloat64     float64            `bson:"storeProductPrice" xml:"-"`
+	Price            string             `bson:"" xml:"PRECO"`
+	PriceFrom        string             `bson:"" xml:"PRECO_DE"`
 	InstallmentQtd   int                `bson:"" xml:"NPARCELA"`
-	InstallmentValue float64            `bson:"" xml:"VPARCELA"`
+	InstallmentValue string             `bson:"" xml:"VPARCELA"`
 	Url              string             `bson:"" xml:"URL"`
 	UrlImage         string             `bson:"" xml:"URL_IMAGEM"`
 	MPC              string             `bson:"" xml:"MPC"`    // MPC – (Manufacturer Part Number)
@@ -177,9 +180,12 @@ func getProdutcts() (results []product) {
 			result.EAN = findEan(result.TechInfo)
 		}
 		// Price from.
-		result.Price = result.PriceFrom
+		result.Price = fmt.Sprintf("%.2f", result.PriceFloat64)
+		result.Price = strings.ReplaceAll(result.Price, ".", ",")
+		result.PriceFrom = result.Price
 		// Installments.
-		result.InstallmentValue = float64(int((result.Price/3)*100)) / 100
+		result.InstallmentValue = fmt.Sprintf("%.2f", float64(int((result.PriceFloat64/3)*100))/100)
+		result.InstallmentValue = strings.ReplaceAll(result.InstallmentValue, ".", ",")
 		result.Url = "https://www.zunka.com.br/product/" + result.ID
 		// Images.
 		if len(result.Images) > 0 {
