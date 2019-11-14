@@ -40,8 +40,8 @@ type product struct {
 	Name             string             `bson:"storeProductTitle" xml:"NOME"`
 	Department       string             `bson:"" xml:"DEPARTAMENTO"`
 	Category         string             `bson:"storeProductCategory" xml:"SUBDEPARTAMENTO"`
-	Desc             string             `bson:"storeProductDescription" xml:"DESCRICAO"`
-	TechInfo         string             `bson:"storeProductTechnicalInformation" xml:"-"`
+	Detail           string             `bson:"storeProductDetail" xml:"DESCRICAO"`
+	TechInfo         string             `bson:"storeProductTechnicalInformation" xml:"-"` // To get get ean.
 	PriceFrom        float64            `bson:"storeProductPrice" xml:"PRECO_DE"`
 	Price            float64            `bson:"" xml:"PRECO"`
 	InstallmentQtd   int                `bson:"" xml:"NPARCELA"`
@@ -148,7 +148,7 @@ func getProdutcts() (results []product) {
 	findOptions.SetProjection(bson.D{
 		{"storeProductTitle", true},
 		{"storeProductCategory", true},
-		{"storeProductDescription", true},
+		{"storeProductDetail", true},
 		{"storeProductTechnicalInformation", true},
 		{"storeProductPrice", true},
 		{"ean", true},
@@ -194,7 +194,7 @@ func getProdutcts() (results []product) {
 		// log.Println("ObjectID (string):", result.ObjectID.Hex())
 		// log.Println("ID:", result.ID)
 		// log.Println("Name:", result.Name)
-		// log.Println("Desc:", result.Desc)
+		// log.Println("Detail:", result.Detail)
 		// log.Println("Category:", result.Category)
 		// log.Println("Price:", result.Price)
 		// log.Println("Images:", result.Images)
