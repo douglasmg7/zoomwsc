@@ -64,7 +64,7 @@ func init() {
 	if zunkaPathLog == "" {
 		panic("ZUNKAPATH not defined.")
 	}
-	logPath := path.Join(zunkaPathLog, "log")
+	logPath := path.Join(zunkaPathLog, "log", "zoom")
 	// Path for xml.
 	zunkaPathXML := os.Getenv("ZUNKA_SITE_PATH")
 	if zunkaPathXML == "" {
@@ -121,7 +121,8 @@ func main() {
 	err = client.Disconnect(ctxClient)
 	checkFatalError(err)
 
-	log.Printf("Time to process %v\n\n", time.Since(initTime))
+	timeToProcess := time.Since(initTime)
+	log.Printf("Time to process %.0fms\n\n", float64(timeToProcess)/1e6)
 }
 
 // Get all products to commercialize.
