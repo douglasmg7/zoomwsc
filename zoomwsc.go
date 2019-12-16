@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"path"
 	"regexp"
@@ -98,6 +99,10 @@ func init() {
 }
 
 func main() {
+	log.Printf("*** Testing zoom api ****")
+	apiGetProducts()
+	return
+
 	// MongoDB config.
 	client, err = mongo.NewClient(options.Client().ApplyURI(zunkaSiteMongoDBConnectionString))
 	// MongoDB client.
@@ -260,6 +265,35 @@ func saveXML(products []product) {
 		err = ioutil.WriteFile(path.Join(xmlPath, fileNameSent), xmlFile, 0644)
 		checkFatalError(err)
 	}
+}
+
+func apiGetProducts() {
+	// Request products.
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", "http://merchant.zoom.com.br/api/merchant/products", nil)
+	req.Header.Set("Content-Type", "application/json")
+	checkFatalError(err)
+
+	// req.SetBasicAuth("zunka", "1159Quasecomfome")
+	req.SetBasicAuth("zunka@zunka.com.br", "1159Quasecomfome")
+	// log.Println("outlook")
+	// req.SetBasicAuth("zunka@outlook.com.br", "1159Quasecomfome")
+	res, err := client.Do(req)
+	checkFatalError(err)
+
+	defer res.Body.Close()
+	checkFatalError(err)
+
+	// Result.
+	resBody, err := ioutil.ReadAll(res.Body)
+	checkFatalError(err)
+	// No 200 status.
+	if res.StatusCode != 200 {
+		log.Fatalf("Error ao solicitar a criação do produtos no servidor zoom.\n\nstatus: %v\n\nbody: %v", res.StatusCode, string(resBody))
+		return
+	}
+	// Log body result.
+	log.Printf("body: %v", resBody)
 }
 
 func checkFatalError(err error) {
