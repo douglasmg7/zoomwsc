@@ -99,9 +99,9 @@ func init() {
 }
 
 func main() {
-	log.Printf("*** Testing zoom api ****")
-	apiGetProducts()
-	return
+	// log.Printf("*** Testing zoom api ****")
+	// apiGetProducts()
+	// return
 
 	// MongoDB config.
 	client, err = mongo.NewClient(options.Client().ApplyURI(zunkaSiteMongoDBConnectionString))
@@ -274,10 +274,10 @@ func apiGetProducts() {
 	req.Header.Set("Content-Type", "application/json")
 	checkFatalError(err)
 
-	// req.SetBasicAuth("zunka", "1159Quasecomfome")
-	req.SetBasicAuth("zunka@zunka.com.br", "1159Quasecomfome")
-	// log.Println("outlook")
-	// req.SetBasicAuth("zunka@outlook.com.br", "1159Quasecomfome")
+	// Devlopment.
+	req.SetBasicAuth("zoomteste_zunka", "H2VA79Ug4fjFsJb")
+	// Production.
+	// req.SetBasicAuth("zunka_informatica*", "h8VbfoRoMOSgZ2B")
 	res, err := client.Do(req)
 	checkFatalError(err)
 
@@ -293,7 +293,7 @@ func apiGetProducts() {
 		return
 	}
 	// Log body result.
-	log.Printf("body: %v", resBody)
+	log.Printf("body: %s", string(resBody))
 }
 
 func checkFatalError(err error) {
